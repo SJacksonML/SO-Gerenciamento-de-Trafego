@@ -9,9 +9,9 @@ typedef struct {
     pthread_cond_t cond;
 } ClockState;
 
-void clock_init();
+ClockState *clock_init(void);
 
-void clock_destroy();
+void clock_destroy(ClockState *clock_state);
 
 void clock_wait_tick();
 
