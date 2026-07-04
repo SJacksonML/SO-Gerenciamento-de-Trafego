@@ -6,6 +6,7 @@
 #define RENDER_H
 
 #include "map.h"
+#include "sync.h"
 
 /*
  * Limpa o terminal e redesenha o mapa inteiro,

@@ -7,6 +7,8 @@
 
 #define MAX_ROWS 30
 #define MAX_COLS 30
+#define MAX_INTERSECTIONS 64
+
 
 typedef enum
 {
@@ -29,19 +31,10 @@ typedef enum
 } CellType;
 
 
-/* TODO: (Jackson) Quem muda esses valores é o módulo de sincronização*/
-typedef enum {
-    SIGNAL_NONE  = -1, /* Não existe semáforo aqui */
-    SIGNAL_GREEN = 0,
-    SIGNAL_RED   = 1
-} SignalState;
-
 typedef struct {
     CellType type;
     int occupant_id;
     char occupant_symbol;
-
-    SignalState signal_state;
 } Cell;
 
 typedef struct
@@ -57,11 +50,14 @@ typedef struct
  * Retorna 0 em sucesso, -1 em erro.
  *
  */
-int map_load(Map *map, char *path);
+int map_load(Map *map, const char *path);
 
-void map_free(Map *map);
+void map_free(Map *m);
 
 int map_is_valid_move(const Map *m, int row, int col, Direction dir);
 
+
+/* Varre o mapa já carregado e preenche com a posição do CELL_INTERSECTION */
+int map_get_intersections(const Map *m, int out_rows[], int out_cols[], int max_count);
 
 #endif
