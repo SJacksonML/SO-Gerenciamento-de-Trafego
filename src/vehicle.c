@@ -6,6 +6,7 @@
 #include "../include/vehicle.h"
 #include "../include/map.h"
 #include "../include/clock.h"
+#include "../include/sync.h"
 
 struct Pos{
     int row;
@@ -51,7 +52,7 @@ static Direction dir_from_tile(Vehicle *vehicle){
 
 static Pos car_next_pos(Vehicle *vehicle){
     Pos next = vehicle->pos;
-    Direction dir = dir_from_tile(vehicle);
+    Direction dir = vehicle->direction;
 
     switch (dir){
         DIR_NORTH: next.row--; break;
@@ -64,13 +65,23 @@ static Pos car_next_pos(Vehicle *vehicle){
 }
 
 static void car_advance(Vehicle *vehicle, Pos next){
-    bool check = map_is_valid_move(vehicle->map, next.row, next.col, vehicle->direction);
-    if (check){
-        vehicle->pos = next;
-        return;
+    Direction check = map_is_valid_move(vehicle->map, next.row, next.col, vehicle->direction);
+
+    if (check != 0){
+        switch (check){
+            //case DIR_INVALID: break; /* for better case handling
+
+            case DIR_COUNT: break; // *signal/intersection treatment
+            
+            default:
+            vehicle->pos = next;
+        }
     }
     return false;
-    }
+}
+
+static void car_wait_green(Vehicle *vehicle, Pos signal){
+}
 
 Vehicle *vehicle_init(Vehicle *vehicle, int id, VehicleType t, Direction d, Pos start, Speed s, Map *m){
     vehicle->id = id;
@@ -83,5 +94,14 @@ Vehicle *vehicle_init(Vehicle *vehicle, int id, VehicleType t, Direction d, Pos 
 }
 
 void vehicle_run(Vehicle *vehicle){
-    return;
+    Map *map = vehicle->map;
+    while (1/*change to ticks*/){
+        Pos pos = vehicle->pos;
+        Direction tile_dir = dir_from_tile(vehicle);
+        switch (tile_dir){
+            case DIR_COUNT: continue;
+            default: Pos next = car_next_pos(vehicle);
+            car_advance(vehicle, next);
+            }
+        }
 }
