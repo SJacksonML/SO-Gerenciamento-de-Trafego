@@ -98,16 +98,16 @@ void map_free(Map *m) {
 }
 
 int map_is_valid_move(const Map *m, int row, int col, Direction dir) {
-    if (!m) return 0;
+    if (!m) return DIR_INVALID;
 
     if (row < 0 || row >= m->rows || col < 0 || col >= m->cols) {
-        return 0; /* fora do mapa */
+        return DIR_INVALID; /* fora do mapa */
     }
 
     const Cell *cell = &m->grid[row][col];
 
     if (cell->type == CELL_WALL) {
-        return 0; /* não é via */
+        return DIR_INVALID; /* não é via */
     }
 
     switch (cell->type) {
@@ -122,7 +122,7 @@ int map_is_valid_move(const Map *m, int row, int col, Direction dir) {
         case CELL_ROAD:
         case CELL_INTERSECTION:
         default:
-            return 1; /* mão dupla / cruzamento: qualquer direção é permitida aqui */
+            return DIR_COUNT; /* mão dupla / cruzamento: qualquer direção é permitida aqui */
     }
 }
 

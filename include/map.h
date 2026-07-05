@@ -12,6 +12,7 @@
 
 typedef enum
 {
+    DIR_INVALID = -1,
     DIR_NORTH = 0,
     DIR_SOUTH,
     DIR_EAST,
