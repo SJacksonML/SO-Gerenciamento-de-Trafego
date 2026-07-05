@@ -63,6 +63,15 @@ static Pos car_next_pos(Vehicle *vehicle){
     return next;
 }
 
+static void car_advance(Vehicle *vehicle, Pos next){
+    bool check = map_is_valid_move(vehicle->map, next.row, next.col, vehicle->direction);
+    if (check){
+        vehicle->pos = next;
+        return;
+    }
+    return false;
+    }
+
 Vehicle *vehicle_init(Vehicle *vehicle, int id, VehicleType t, Direction d, Pos start, Speed s, Map *m){
     vehicle->id = id;
     vehicle->type = t;
@@ -73,6 +82,6 @@ Vehicle *vehicle_init(Vehicle *vehicle, int id, VehicleType t, Direction d, Pos 
     return vehicle;
 }
 
-void vehicle_run(){
+void vehicle_run(Vehicle *vehicle){
     return;
 }
