@@ -24,8 +24,6 @@ static char cell_char(const Map *m, int r, int c) {
     switch (cell->type) {
         case CELL_WALL:
             return '#';
-        case CELL_ROAD:
-            return '.';
         case CELL_INTERSECTION:
             /* O estado do semáforo (R/G) é gerenciado pelo módulo de
              * sincronização (Jackson), não pelo Map. Aqui desenhamos
@@ -71,7 +69,7 @@ void render_frame(const Map *m) {
      * mapa sem necessidade. */
     static int legend_printed = 0;
     if (!legend_printed) {
-        printf("Legenda: # parede | . via | + cruzamento | ^v<> mao unica | A ambulancia\n");
+        printf("Legenda: # parede | + cruzamento | ^v<> faixa (mao unica; par ^v ou <> lado a lado = mao dupla em 2 faixas) | A ambulancia\n");
         legend_printed = 1;
     }
 
