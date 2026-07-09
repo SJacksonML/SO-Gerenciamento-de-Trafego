@@ -4,6 +4,8 @@
 #include <pthread.h>
 #include "map.h"
 
+#define N_INTERSECTIONS MAX_INTERSECTIONS
+
 /*
  * Módulo responsável pela sincronização do simulador.
  *
@@ -42,7 +44,7 @@ typedef enum
 /*
  * Representa um cruzamento controlado por semáforo.
  *
- * Cada cruzamento possui sua prórpia sincronização, permitindo que múltiploos veículos aguardem o sinal.
+ * Cada cruzamento possui sua própria sincronização, permitindo que múltiplos veículos aguardem o sinal.
  *
  * Além da posição do cruzamento no mapa, a estrutura mantém o estado atual do semáforo para cada direção,
  * em vez do estado de cada célula.
@@ -56,6 +58,9 @@ typedef enum
     
     int row;
     int col;
+
+    int priority_requested;
+    Direction priority_dir;
 } TrafficSignal;
 
 typedef struct
@@ -67,7 +72,7 @@ typedef struct
     TrafficSignal signals[N_INTERSECTIONS];
 
     /*
-     * Mapeia cada posição do mapa para um índice do vetor ignals[].
+     * Mapeia cada posição do mapa para um índice do vetor signals[].
      *
      * -1 -> a célula não possui semáforo
      *  0 -> signals[0]
@@ -75,6 +80,9 @@ typedef struct
      *  ...
      */
     int signal_index[MAX_ROWS][MAX_COLS];
+
+    /* Quantidade total de semáforos inicializados */
+    int num_signals;
 } SyncContext;
 
 /*
@@ -91,7 +99,7 @@ extern SyncContext g_sync;
 void sync_init(Map *map);
 
 /*
- * Liberação dos recursos
+ * Liberação dos recursos.
  */
 void sync_destroy(void);
 
@@ -151,10 +159,10 @@ void traffic_wait_green(
 void *traffic_signal_loop(
     void *arg);
 
-/* STUB
+/*
  * Solicita prioridade para um veículo que deseja atravessar um cruzamento.
  *
- * A implementação poderá utilizar essa informação para alterar dinamicamente o ciclo do semáforo.
+ * A implementação utilizará essa informação para alterar dinamicamente o ciclo do semáforo.
  */
 void traffic_request_priority(
     int row,
