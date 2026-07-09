@@ -1,37 +1,35 @@
 
-/*número máximo de veículos, deve ser respeitado na implementação para evitar engarrafamentos numerosos*/
+/* número máximo de veículos, deve ser respeitado na implementação para evitar engarrafamentos numerosos */
 #define MAX_VEHICLE 10
 
-/*enum dos tipos de veículo*/
+/* enum dos tipos de veículo */
 typedef enum{
     TYPE_AMBULANCE,
     TYPE_CAR,
 }VehicleType;
 
-/*enum das possíveis velocidades de um veículo*/
+/* enum das possíveis velocidades de um veículo */
 typedef enum{
     SPEED_SLOW,
     SPEED_MEDIUM,
     SPEED_FAST,
-}Speed;
+} Speed;
 
-/*
-*struct de posição atual de um veículo, possui:
-*int row;
-*int col;
-*/
-typedef struct Pos Pos;
+/* struct de posição atual de um veículo */
+typedef struct Pos{
+    int row;
+    int col;
+} Pos;
 
-/*
-*struct de um veículo, possui:
-*int id;
-*VehicleType type;
-*Direction direction;
-*Speed speed;
-*Pos pos;
-*Map *map;
-*/
-typedef struct Vehicle Vehicle;
+/* struct de um veículo */
+typedef struct Vehicle{
+    int id;
+    VehicleType type;
+    Direction direction;
+    Speed speed;
+    Pos pos;
+    Map *map;
+} Vehicle;
 
 /*
 *função para alocar dados de um veículo
