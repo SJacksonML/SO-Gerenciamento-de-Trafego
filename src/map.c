@@ -5,19 +5,25 @@
 /* ------------------------------------------------------------------
  * Legenda do assets/map.txt:
  *   '#' parede / não é via
- *   '.' via comum (mão dupla)
  *   '+' cruzamento (semáforo)
  *   '^' via de mão única sentido norte (linha diminui)
  *   'v' via de mão única sentido sul (linha aumenta)
  *   '>' via de mão única sentido Leste (coluna aumenta)
  *   '<' via de mão única sentido oeste (coluna diminui)
+ *
+ *
+ * OBS: a mão dupla são duas faixas de mão única em sentidos opostos (olhar map.txt
+ * para melhor entendimento). Não existe compartilhamento de célula, pois tem dois
+ * sentidos, ou seha, cada faixa é seu próprio mutex. 
+ *
+ * (09/07/26)
+ * OBS²: Não foi feita nenhuma mudança em CellType e nem em "map_isvalid_move".
  * ------------------------------------------------------------------ */
 
 /* Interna: converte character do .txt para CellType. */
 static CellType char_to_type(char c) {
     switch (c) {
         case '#': return CELL_WALL;
-        case '.': return CELL_ROAD;
         case '+': return CELL_INTERSECTION;
         case '^': return CELL_ONE_WAY_N;
         case 'v': return CELL_ONE_WAY_S;
@@ -119,7 +125,6 @@ int map_is_valid_move(const Map *m, int row, int col, Direction dir) {
             return dir == DIR_EAST;
         case CELL_ONE_WAY_W:
             return dir == DIR_WEST;
-        case CELL_ROAD:
         case CELL_INTERSECTION:
         default:
             return DIR_COUNT; /* mão dupla / cruzamento: qualquer direção é permitida aqui */
