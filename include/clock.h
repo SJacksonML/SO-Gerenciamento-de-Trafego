@@ -29,6 +29,8 @@ void clock_wait_tick(void);
 
 void *clock_thread(void *arg);
 
+void clock_stop(void);
+
 int clock_get_tick(void);
 
 #endif
