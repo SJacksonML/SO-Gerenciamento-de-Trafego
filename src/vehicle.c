@@ -179,11 +179,12 @@ Vehicle *vehicle_init(Vehicle *vehicle, int id, VehicleType t, Direction d, Pos 
 void vehicle_run(Vehicle *vehicle){
     int global_tick = 0;
     int move_tick = 0;
+    extern int is_active;
 
-    while (global_tick < VEHICLE_LIFETIME_TICKS){
+    while (global_tick < VEHICLE_LIFETIME_TICKS && is_active){
         global_tick = clock_get_tick();
         move_tick++;
         car_advance(vehicle, move_tick);
         clock_wait_tick();
-}
+    }
 }

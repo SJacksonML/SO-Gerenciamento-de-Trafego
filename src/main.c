@@ -203,6 +203,7 @@ int main(int argc, char **argv) {
 
     /* ---------- 7. Encerramento ---------- */
     clock_stop();
+    sync_wakeup_all();
 
     pthread_join(clock_tid, NULL);
 

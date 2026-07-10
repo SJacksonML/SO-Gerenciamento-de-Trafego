@@ -39,11 +39,10 @@ void clock_destroy(void) {
 void clock_wait_tick(void) {
     pthread_mutex_lock(&clock_state.mutex);
     int initial_tick = clock_state.tick;
-    while (initial_tick == clock_state.tick) {
+    while (initial_tick == clock_state.tick && is_active) {
         pthread_cond_wait(&clock_state.cond, &clock_state.mutex);
     }
     pthread_mutex_unlock(&clock_state.mutex);
-
 }
 
 /* Função principal do relógio, é usada para avançar o tempo
@@ -70,7 +69,10 @@ void *clock_thread(void *arg) {
 * Coloca is_active em 0 para encerrar o while da clock_thread
 */
 void clock_stop(void) {
+    pthread_mutex_lock(&clock_state.mutex);
     is_active = 0;
+    pthread_cond_broadcast(&clock_state.cond);
+    pthread_mutex_unlock(&clock_state.mutex);
 }
 
 /* Função de receber o tick

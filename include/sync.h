@@ -104,6 +104,11 @@ void sync_init(Map *map);
 void sync_destroy(void);
 
 /*
+ * Acorda todas as threads bloqueadas nos semáforos.
+ */
+void sync_wakeup_all(void);
+
+/*
  * Retorna o semáforo associado ao cruzamento
  * localizado em (row, col).
  *

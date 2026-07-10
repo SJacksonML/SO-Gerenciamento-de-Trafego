@@ -7,6 +7,8 @@
  */
 SyncContext g_sync;
 
+extern int is_active;
+
 /*
  * Localiza todos os cruzamentos existentes no mapa, registra sua posição
  * e cria as estruturas de sincronização correspondentes.
@@ -65,6 +67,20 @@ void sync_destroy(void)
         pthread_cond_destroy(&g_sync.signals[i].cond);
     }
 }
+
+/*
+ * Acorda todas as threads bloqueadas nos semáforos.
+ */
+void sync_wakeup_all(void)
+{
+    for (int i = 0; i < g_sync.num_signals; i++)
+    {
+        pthread_mutex_lock(&g_sync.signals[i].mutex);
+        pthread_cond_broadcast(&g_sync.signals[i].cond);
+        pthread_mutex_unlock(&g_sync.signals[i].mutex);
+    }
+}
+
 
 /* 
  * Obtém o semáforo associado a uma posição do mapa.
@@ -183,7 +199,7 @@ void traffic_wait_green(
     TrafficSignal *sig = (TrafficSignal *)signal;
 
     pthread_mutex_lock(&sig->mutex);
-    while (sig->state[direction] == SIGNAL_RED)
+    while (sig->state[direction] == SIGNAL_RED && is_active)
     {
         pthread_cond_wait(&sig->cond, &sig->mutex);
     }
