@@ -33,7 +33,7 @@ alterar o código-fonte:
   `pthread.h`/`unistd.h`. No terminal **MSYS2 MinGW64**:
   `pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-make` e depois `make`.
 
-Alternativamente, o código pode ser executado pelo codespace do github idependente do sistema operaacional do usuário.
+- **[RECOMENDADO]** Alternativamente, o código pode ser executado pelo codespace do github idependente do sistema operaacional do usuário.
 
 ---
 
@@ -97,3 +97,7 @@ Células identificadas por "?", quando ocorrem, acabam eventualmente retornando 
 | Elilúcio | Veículos e Threads |
 | Jackson | Sincronização |
 | Ícaro | Relógio, Main e Integração |
+
+## Link para o relatório do projeto
+
+[Relatório Projeto Prático SO - Gerenciamento de Tráfego](Relatorio_Simulador_Trafego.pdf)
