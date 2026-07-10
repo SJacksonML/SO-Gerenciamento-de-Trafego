@@ -16,7 +16,7 @@ static bool should_move(Vehicle *vehicle, int tick){
         case SPEED_FAST: return true;
         case SPEED_MEDIUM: return (tick % 2 == 0);
         case SPEED_SLOW: return (tick % 4 == 0);
-        default: false;
+        default: return false; 
     }
 }
 
@@ -42,6 +42,7 @@ static Direction switch_dir(Vehicle *vehicle, int l_or_r){
             case DIR_SOUTH: return DIR_WEST;
             case DIR_WEST: return DIR_NORTH;
             case DIR_EAST: return DIR_SOUTH;
+            default: return DIR_INVALID; 
         }
     }
     else{
@@ -50,6 +51,7 @@ static Direction switch_dir(Vehicle *vehicle, int l_or_r){
             case DIR_SOUTH: return DIR_EAST;
             case DIR_WEST: return DIR_SOUTH;
             case DIR_EAST: return DIR_NORTH;
+            default: return DIR_INVALID; 
         }
     }
 }
@@ -73,47 +75,54 @@ static bool car_advance(Vehicle *vehicle, Pos next, int tick){
     Direction check = map_is_valid_move(vehicle->map, next.row, next.col, vehicle->direction);
 
     switch (check){
-        case DIR_INVALID: vehicle->direction = switch_dir(vehicle, 2); // *switch directions on wall
-        return true;
+        case DIR_INVALID: 
+            vehicle->direction = switch_dir(vehicle, 2);
+            return true;
 
-        case DIR_COUNT: // *signal/intersection treatment
-        TrafficSignal *TLThisCell = sync_get_signal(vehicle->pos.row, vehicle->pos.col);
+        case DIR_COUNT: { 
+            TrafficSignal *TLThisCell = sync_get_signal(vehicle->pos.row, vehicle->pos.col);
 
-        if (TLThisCell == NULL){
-            if (vehicle->type == TYPE_AMBULANCE) traffic_request_priority(next.row, next.col, vehicle->direction);
-            traffic_wait_green(next.row, next.col, vehicle->direction);
-            if (cell_try_occupy(vehicle->map, next.row, next.col, vehicle->id)){
-                vehicle->pos = next;
-                cell_release(vehicle->map, next.row, next.col);
-                return true;
+            if (TLThisCell == NULL){
+                if (vehicle->type == TYPE_AMBULANCE) traffic_request_priority(next.row, next.col, vehicle->direction);
+                traffic_wait_green(next.row, next.col, vehicle->direction);
+                if (cell_try_occupy(vehicle->map, next.row, next.col, vehicle->id)){
+                    vehicle->pos = next;
+                    cell_release(vehicle->map, next.row, next.col);
+                    return true;
+                }
+                return false;
             }
-        }
-        else{
-            srand(time(NULL));
-            int turn = rand() % (2-1+1)+1;
-            if (turn!=2) vehicle->direction = switch_dir(vehicle, turn);
-            next = car_next_pos(vehicle);
-            if (cell_try_occupy(vehicle->map, next.row, next.col, vehicle->id)){
-                vehicle->pos = next;
-                cell_release(vehicle->map, next.row, next.col);
-            }
-        }
-        
-        default: // * handling normal roads and intersection ends
-        if (dir_from_tile == DIR_COUNT){
-            int turn = rand() % (2-1+1)+1;
-            if (turn==2){
-                vehicle->direction = switch_dir(vehicle, turn);
+            else{
+                srand(time(NULL));
+                int turn = rand() % (2-1+1)+1;
+                if (turn!=2) vehicle->direction = switch_dir(vehicle, turn);
                 next = car_next_pos(vehicle);
+                if (cell_try_occupy(vehicle->map, next.row, next.col, vehicle->id)){
+                    vehicle->pos = next;
+                    cell_release(vehicle->map, next.row, next.col);
+                    return true;
+                }
+                return false;
             }
+            break;
         }
-        if (cell_try_occupy(vehicle->map, next.row, next.col, vehicle->id)){
-            vehicle->pos = next;
-            cell_release(vehicle->map, next.row, next.col);
-            vehicle->direction = check;
+
+        default: 
+            if (dir_from_tile(vehicle) == DIR_COUNT){ 
+                int turn = rand() % (2-1+1)+1;
+                if (turn==2){
+                    vehicle->direction = switch_dir(vehicle, turn);
+                    next = car_next_pos(vehicle);
+                }
+            }
+            if (cell_try_occupy(vehicle->map, next.row, next.col, vehicle->id)){
+                vehicle->pos = next;
+                cell_release(vehicle->map, next.row, next.col);
+                vehicle->direction = check;
+                return true; 
+            }
             return false;
-        }
-        }
+    }
     return false;
 }
 
@@ -137,6 +146,6 @@ void vehicle_run(Vehicle *vehicle){
         move_tick++;
         Pos next = car_next_pos(vehicle);
         car_advance(vehicle, next, move_tick);
-        clock_wait_tick(); // *waiting for clock to broadcast
+        clock_wait_tick(); 
     }
 }

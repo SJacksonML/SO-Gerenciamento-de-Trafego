@@ -1,6 +1,7 @@
+#include "map.h"
 
 /* número máximo de veículos, deve ser respeitado na implementação para evitar engarrafamentos numerosos */
-#define MAX_VEHICLE 10
+#define MAX_VEHICLE 20
 
 /* enum dos tipos de veículo */
 typedef enum{
