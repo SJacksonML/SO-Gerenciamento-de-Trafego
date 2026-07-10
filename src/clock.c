@@ -77,5 +77,8 @@ void clock_stop(void) {
 * Retorna o tick do clock state
 */
 int clock_get_tick(void) {
-    return clock_state.tick;
+    pthread_mutex_lock(&clock_state.mutex);
+    int current_tick = clock_state.tick;
+    pthread_mutex_unlock(&clock_state.mutex);
+    return current_tick;
 }
