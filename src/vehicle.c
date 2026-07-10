@@ -1,31 +1,17 @@
 #include <stdlib.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <pthread.h>
+#include <time.h>
 
 #include "../include/vehicle.h"
 #include "../include/map.h"
 #include "../include/clock.h"
 #include "../include/sync.h"
 
-struct Pos{
-    int row;
-    int col;
-};
 
-struct Vehicle{
-    int id;
-    VehicleType type;
-    Direction direction;
-    Speed speed;
-    Pos pos;
-    Map *map;
-};
-
-static bool should_move(Vehicle *vehicle){
+static bool should_move(Vehicle *vehicle, int tick){
     if (!vehicle) return false;
 
-    int tick = clock_get_tick(); //conversa necessária, sem acesso ao clock
     switch (vehicle->speed){
         case SPEED_FAST: return true;
         case SPEED_MEDIUM: return (tick % 2 == 0);
@@ -44,8 +30,27 @@ static Direction dir_from_tile(Vehicle *vehicle){
         case CELL_ONE_WAY_E: return DIR_EAST;
         case CELL_ONE_WAY_W: return DIR_WEST;
         case CELL_INTERSECTION: return DIR_COUNT;
-        case CELL_ROAD: return DIR_COUNT;
         default: return DIR_INVALID;
+    }
+}
+
+static Direction switch_dir(Vehicle *vehicle, int l_or_r){
+    Direction dir = vehicle->direction;
+    if (l_or_r == 1){
+        switch (dir){
+            case DIR_NORTH: return DIR_EAST;
+            case DIR_SOUTH: return DIR_WEST;
+            case DIR_WEST: return DIR_NORTH;
+            case DIR_EAST: return DIR_SOUTH;
+        }
+    }
+    else{
+        switch (dir){
+            case DIR_NORTH: return DIR_WEST;
+            case DIR_SOUTH: return DIR_EAST;
+            case DIR_WEST: return DIR_SOUTH;
+            case DIR_EAST: return DIR_NORTH;
+        }
     }
 }
 
@@ -54,46 +59,62 @@ static Pos car_next_pos(Vehicle *vehicle){
     Direction dir = vehicle->direction;
 
     switch (dir){
-        DIR_NORTH: next.row--; break;
-        DIR_SOUTH: next.row++; break;
-        DIR_EAST: next.col--; break;
-        DIR_WEST: next.col++; break;
+        case DIR_NORTH: next.row--; break;
+        case DIR_SOUTH: next.row++; break;
+        case DIR_EAST: next.col--; break;
+        case DIR_WEST: next.col++; break;
         default: break;
     }
     return next;
 }
 
-static bool car_advance(Vehicle *vehicle, Pos next){
-    if (!should_move(vehicle)) return false;
+static bool car_advance(Vehicle *vehicle, Pos next, int tick){
+    if (!should_move(vehicle, tick)) return false;
     Direction check = map_is_valid_move(vehicle->map, next.row, next.col, vehicle->direction);
 
     switch (check){
-        case DIR_INVALID: break; // * invalid movement
+        case DIR_INVALID: vehicle->direction = switch_dir(vehicle, 2); // *switch directions on wall
+        return true;
 
-        case DIR_COUNT: break; // *signal/intersection treatment
-        /*
-        * waiting updates on sync for correct implementation
-        *TrafficSignal *TL = sync_get_signal(next.row, next.col); 
-        *if (vehicle->type == TYPE_AMBULANCE) traffic_request_priority(next.row, next.col, vehicle->direction);
-        *traffic_wait_green(next.row, next.col, vehicle->direction);
-        *if (cell_try_occupy(vehicle->map, next.row, next.col, vehicle->id)){
-        *    vehicle->pos = next;
-        *    cell_release(vehicle->map, next.row, next.col);
-        *    return true;
-        */
+        case DIR_COUNT: // *signal/intersection treatment
+        TrafficSignal *TLThisCell = sync_get_signal(vehicle->pos.row, vehicle->pos.col);
+
+        if (TLThisCell == NULL){
+            if (vehicle->type == TYPE_AMBULANCE) traffic_request_priority(next.row, next.col, vehicle->direction);
+            traffic_wait_green(next.row, next.col, vehicle->direction);
+            if (cell_try_occupy(vehicle->map, next.row, next.col, vehicle->id)){
+                vehicle->pos = next;
+                cell_release(vehicle->map, next.row, next.col);
+                return true;
+            }
+        }
+        else{
+            srand(time(NULL));
+            int turn = rand() % (2-1+1)+1;
+            if (turn!=2) vehicle->direction = switch_dir(vehicle, turn);
+            next = car_next_pos(vehicle);
+            if (cell_try_occupy(vehicle->map, next.row, next.col, vehicle->id)){
+                vehicle->pos = next;
+                cell_release(vehicle->map, next.row, next.col);
+            }
+        }
         
-        default: // * handling direction-swap tiles
+        default: // * handling normal roads and intersection ends
+        if (dir_from_tile == DIR_COUNT){
+            int turn = rand() % (2-1+1)+1;
+            if (turn==2){
+                vehicle->direction = switch_dir(vehicle, turn);
+                next = car_next_pos(vehicle);
+            }
+        }
         if (cell_try_occupy(vehicle->map, next.row, next.col, vehicle->id)){
             vehicle->pos = next;
             cell_release(vehicle->map, next.row, next.col);
             vehicle->direction = check;
-            return true;
+            return false;
         }
-    }
+        }
     return false;
-}
-
-static void car_wait_green(Vehicle *vehicle, Pos signal){
 }
 
 Vehicle *vehicle_init(Vehicle *vehicle, int id, VehicleType t, Direction d, Pos start, Speed s, Map *m){
@@ -107,21 +128,15 @@ Vehicle *vehicle_init(Vehicle *vehicle, int id, VehicleType t, Direction d, Pos 
 }
 
 void vehicle_run(Vehicle *vehicle){
-    int current_tick;
+    int global_tick = 0;
+    int move_tick = 0;
     Map *map = vehicle->map;
-    while (1/*change to ticks*/){
-        current_tick = clock_get_tick; //conversa necessária, não há acesso ao clock
-        Pos pos = vehicle->pos;
-        Direction tile_dir = dir_from_tile(vehicle);
 
-        switch (tile_dir){
-            case DIR_INVALID: break; // *possible error treatment
-
-            case DIR_COUNT: break; // *waiting for sync updates
-
-            default: Pos next = car_next_pos(vehicle); // *handling the position advancement in direction-swap tiles
-            car_advance(vehicle, next);
-            }
+    while (global_tick < 100){
+        global_tick = clock_get_tick();
+        move_tick++;
+        Pos next = car_next_pos(vehicle);
+        car_advance(vehicle, next, move_tick);
         clock_wait_tick(); // *waiting for clock to broadcast
-        }
+    }
 }
