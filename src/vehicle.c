@@ -186,3 +186,4 @@ void vehicle_run(Vehicle *vehicle){
         car_advance(vehicle, move_tick);
         clock_wait_tick();
 }
+}
