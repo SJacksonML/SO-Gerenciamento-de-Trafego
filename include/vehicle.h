@@ -30,13 +30,6 @@ typedef struct Vehicle{
     Speed speed;
     Pos pos;
     Map *map;
-
-    /* Estado do gerador de números aleatórios PRÓPRIO deste veículo.
-     * Necessário porque rand()/srand() usam estado global e não são
-     * thread-safe: com várias threads de veículo chamando rand() ao
-     * mesmo tempo (ex.: para decidir a direção num cruzamento) ocorre
-     * condição de corrida. Cada veículo usa rand_r(&rng_state), que é
-     * thread-safe pois opera sobre memória local à própria struct. */
     unsigned int rng_state;
 } Vehicle;
 
