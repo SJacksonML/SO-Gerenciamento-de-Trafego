@@ -8,114 +8,159 @@
 #include "../include/clock.h"
 #include "../include/sync.h"
 
+#define VEHICLE_LIFETIME_TICKS 149
 
 static bool should_move(Vehicle *vehicle, int tick){
     if (!vehicle) return false;
 
     switch (vehicle->speed){
-        case SPEED_FAST: return true;
+        case SPEED_FAST:   return true;
         case SPEED_MEDIUM: return (tick % 2 == 0);
-        case SPEED_SLOW: return (tick % 4 == 0);
-        default: false;
+        case SPEED_SLOW:   return (tick % 4 == 0);
+        default:           return false; 
     }
 }
 
-static Direction dir_from_tile(Vehicle *vehicle){
-    int x = vehicle->pos.col;
-    int y = vehicle->pos.row;
-    CellType tile_type = vehicle->map->grid[y][x].type;
-    switch (tile_type) {
-        case CELL_ONE_WAY_N: return DIR_NORTH;
-        case CELL_ONE_WAY_S: return DIR_SOUTH;
-        case CELL_ONE_WAY_E: return DIR_EAST;
-        case CELL_ONE_WAY_W: return DIR_WEST;
-        case CELL_INTERSECTION: return DIR_COUNT;
-        default: return DIR_INVALID;
+static Direction opposite_direction(Direction dir){
+    switch (dir){
+        case DIR_NORTH: return DIR_SOUTH;
+        case DIR_SOUTH: return DIR_NORTH;
+        case DIR_EAST:  return DIR_WEST;
+        case DIR_WEST:  return DIR_EAST;
+        default:        return DIR_INVALID;
     }
 }
 
-static Direction switch_dir(Vehicle *vehicle, int l_or_r){
-    Direction dir = vehicle->direction;
-    if (l_or_r == 1){
+typedef enum { TURN_RIGHT, TURN_LEFT } TurnSide;
+
+static Direction turn_direction(Direction dir, TurnSide side){
+    if (side == TURN_RIGHT){
         switch (dir){
             case DIR_NORTH: return DIR_EAST;
             case DIR_SOUTH: return DIR_WEST;
-            case DIR_WEST: return DIR_NORTH;
-            case DIR_EAST: return DIR_SOUTH;
+            case DIR_WEST:  return DIR_NORTH;
+            case DIR_EAST:  return DIR_SOUTH;
+            default:        return DIR_INVALID;
         }
     }
-    else{
-        switch (dir){
-            case DIR_NORTH: return DIR_WEST;
-            case DIR_SOUTH: return DIR_EAST;
-            case DIR_WEST: return DIR_SOUTH;
-            case DIR_EAST: return DIR_NORTH;
-        }
+    switch (dir){
+        case DIR_NORTH: return DIR_WEST;
+        case DIR_SOUTH: return DIR_EAST;
+        case DIR_WEST:  return DIR_SOUTH;
+        case DIR_EAST:  return DIR_NORTH;
+        default:        return DIR_INVALID;
     }
 }
 
-static Pos car_next_pos(Vehicle *vehicle){
-    Pos next = vehicle->pos;
-    Direction dir = vehicle->direction;
-
+static Pos pos_from_direction(Pos from, Direction dir){
+    Pos next = from;
     switch (dir){
         case DIR_NORTH: next.row--; break;
         case DIR_SOUTH: next.row++; break;
-        case DIR_EAST: next.col--; break;
-        case DIR_WEST: next.col++; break;
+        case DIR_EAST:  next.col++; break; 
+        case DIR_WEST:  next.col--; break; 
         default: break;
     }
     return next;
 }
 
-static bool car_advance(Vehicle *vehicle, Pos next, int tick){
-    if (!should_move(vehicle, tick)) return false;
-    Direction check = map_is_valid_move(vehicle->map, next.row, next.col, vehicle->direction);
+static char vehicle_symbol(const Vehicle *vehicle){
+    if (vehicle->type == TYPE_AMBULANCE) return 'A';
+    return 'C';
+}
+
+static bool move_to(Vehicle *vehicle, Pos next){
     Pos old_pos = vehicle->pos;
 
-    switch (check){
-        case DIR_INVALID: vehicle->direction = switch_dir(vehicle, 2); // *switch directions on wall
+    if (!cell_try_occupy(vehicle->map, next.row, next.col, vehicle->id)){
+        return false; 
+    }
+
+    vehicle->map->grid[next.row][next.col].occupant_symbol = vehicle_symbol(vehicle);
+    vehicle->pos = next;
+    cell_release(vehicle->map, old_pos.row, old_pos.col);
+    return true;
+}
+
+static Direction pick_intersection_exit(Vehicle *vehicle){
+    Direction straight = vehicle->direction;
+    Direction right    = turn_direction(straight, TURN_RIGHT);
+    Direction left     = turn_direction(straight, TURN_LEFT);
+    Direction back     = opposite_direction(straight);
+
+    Direction candidates[4];
+    int roll = rand_r(&vehicle->rng_state) % 3;
+    if (roll == 0){
+        candidates[0] = straight; candidates[1] = right; candidates[2] = left;
+    } else if (roll == 1){
+        candidates[0] = right; candidates[1] = straight; candidates[2] = left;
+    } else {
+        candidates[0] = left; candidates[1] = straight; candidates[2] = right;
+    }
+    candidates[3] = back;
+
+    for (int i = 0; i < 4; i++){
+        Direction dir = candidates[i];
+        Pos candidate_next = pos_from_direction(vehicle->pos, dir);
+        Direction check = map_is_valid_move(vehicle->map, candidate_next.row, candidate_next.col, dir);
+        if (check != DIR_INVALID){
+            return dir;
+        }
+    }
+
+    return DIR_INVALID;
+}
+
+static bool try_enter_intersection(Vehicle *vehicle, Pos next){
+    if (vehicle->type == TYPE_AMBULANCE){
+        traffic_request_priority(next.row, next.col, vehicle->direction);
+    }
+
+    traffic_wait_green(next.row, next.col, vehicle->direction);
+
+    return move_to(vehicle, next);
+}
+
+static bool advance_out_of_intersection(Vehicle *vehicle){
+    Direction exit_dir = pick_intersection_exit(vehicle);
+    if (exit_dir == DIR_INVALID){
+        return false;
+    }
+
+    vehicle->direction = exit_dir;
+    Pos next = pos_from_direction(vehicle->pos, exit_dir);
+    return move_to(vehicle, next);
+}
+
+static bool car_advance(Vehicle *vehicle, int tick){
+    if (!should_move(vehicle, tick)) return false;
+
+    CellType current_type = vehicle->map->grid[vehicle->pos.row][vehicle->pos.col].type;
+
+    if (current_type == CELL_INTERSECTION){
+        return advance_out_of_intersection(vehicle);
+    }
+
+    Pos next = pos_from_direction(vehicle->pos, vehicle->direction);
+    Direction check = map_is_valid_move(vehicle->map, next.row, next.col, vehicle->direction);
+
+    if (check == DIR_INVALID){
+        vehicle->direction = opposite_direction(vehicle->direction);
         return true;
+    }
 
-        case DIR_COUNT: // *signal/intersection treatment
-        TrafficSignal *TLThisCell = sync_get_signal(vehicle->pos.row, vehicle->pos.col);
+    CellType next_type = vehicle->map->grid[next.row][next.col].type;
 
-        if (TLThisCell == NULL){
-            if (vehicle->type == TYPE_AMBULANCE) traffic_request_priority(next.row, next.col, vehicle->direction);
-            traffic_wait_green(next.row, next.col, vehicle->direction);
-            if (cell_try_occupy(vehicle->map, next.row, next.col, vehicle->id)){
-                vehicle->pos = next;
-                cell_release(vehicle->map, old_pos.row, old_pos.col);
-                return true;
-            }
-        }
-        else{
-            srand(time(NULL));
-            int turn = rand() % (2-1+1)+1;
-            if (turn!=2) vehicle->direction = switch_dir(vehicle, turn);
-            next = car_next_pos(vehicle);
-            if (cell_try_occupy(vehicle->map, next.row, next.col, vehicle->id)){
-                vehicle->pos = next;
-                cell_release(vehicle->map, old_pos.row, old_pos.col);
-            }
-        }
-        
-        default: // * handling normal roads and intersection ends
-        if (dir_from_tile == DIR_COUNT){
-            int turn = rand() % (2-1+1)+1;
-            if (turn==2){
-                vehicle->direction = switch_dir(vehicle, turn);
-                next = car_next_pos(vehicle);
-            }
-        }
-        if (cell_try_occupy(vehicle->map, next.row, next.col, vehicle->id)){
-            vehicle->pos = next;
-            cell_release(vehicle->map, old_pos.row, old_pos.col);
-            vehicle->direction = check;
-            return false;
-        }
-        }
-    return false;
+    if (next_type == CELL_INTERSECTION){
+        return try_enter_intersection(vehicle, next);
+    }
+
+    if (check == 0){
+        vehicle->direction = opposite_direction(vehicle->direction);
+        return true;
+    }
+
+    return move_to(vehicle, next);
 }
 
 Vehicle *vehicle_init(Vehicle *vehicle, int id, VehicleType t, Direction d, Pos start, Speed s, Map *m){
@@ -125,19 +170,19 @@ Vehicle *vehicle_init(Vehicle *vehicle, int id, VehicleType t, Direction d, Pos 
     vehicle->pos = start;
     vehicle->speed = s;
     vehicle->map = m;
+
+    vehicle->rng_state = (unsigned int)time(NULL) ^ ((unsigned int)id * 2654435761u);
+
     return vehicle;
 }
 
 void vehicle_run(Vehicle *vehicle){
     int global_tick = 0;
     int move_tick = 0;
-    Map *map = vehicle->map;
 
-    while (global_tick < 100){
+    while (global_tick < VEHICLE_LIFETIME_TICKS){
         global_tick = clock_get_tick();
         move_tick++;
-        Pos next = car_next_pos(vehicle);
-        car_advance(vehicle, next, move_tick);
-        clock_wait_tick(); // *waiting for clock to broadcast
-    }
+        car_advance(vehicle, move_tick);
+        clock_wait_tick();
 }
