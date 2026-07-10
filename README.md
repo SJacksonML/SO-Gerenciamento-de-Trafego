@@ -33,6 +33,8 @@ alterar o código-fonte:
   `pthread.h`/`unistd.h`. No terminal **MSYS2 MinGW64**:
   `pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-make` e depois `make`.
 
+Alternativamente, o código pode ser executado pelo codespace do github idependente do sistema operaacional do usuário.
+
 ---
 
 ## Estrutura do projeto
